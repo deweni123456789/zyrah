@@ -1,6 +1,7 @@
 import os
 from pyrogram import Client
 from modules.tiktok import register_tiktok
+from modules.youtube import register_youtube
 
 API_ID = int(os.getenv("API_ID", "5047271"))
 API_HASH = os.getenv("API_HASH", "047d9ed308172e637d4265e1d9ef0c27")
@@ -15,7 +16,9 @@ app = Client(
 
 # Register modules
 register_tiktok(app)
+register_youtube(app)
 
 print("🚀 Social Media Downloader Bot started...")
 
 app.run()
+
