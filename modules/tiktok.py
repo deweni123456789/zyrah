@@ -4,7 +4,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from yt_dlp import YoutubeDL
 import datetime
 
-# Options for video download
+# Video download options
 ydl_opts_video = {
     "format": "best",
     "quiet": True,
@@ -13,27 +13,32 @@ ydl_opts_video = {
     "outtmpl": "%(id)s.%(ext)s"
 }
 
-# Options for audio download
+# Audio download options with postprocessor to ensure audio file
 ydl_opts_audio = {
-    "format": "bestaudio",
+    "format": "bestaudio/best",
     "quiet": True,
     "no_warnings": True,
     "noplaylist": True,
-    "outtmpl": "%(id)s.%(ext)s"
+    "outtmpl": "%(id)s.%(ext)s",
+    "postprocessors": [{
+        "key": "FFmpegExtractAudio",
+        "preferredcodec": "mp3",
+        "preferredquality": "192",
+    }]
 }
 
 def register_tiktok(app: Client):
     @app.on_message(filters.private & filters.regex(r"(https?://)?(www\.)?tiktok\.com/\S+"))
     async def tiktok_handler(client, message):
         url = message.text.strip()
-        processing_msg = await message.reply("⏳ Downloading TikTok info... Please wait")
+        processing_msg = await message.reply("⏳ Fetching TikTok info... Please wait")
 
         try:
-            # Extract info only
             with YoutubeDL(ydl_opts_video) as ydl:
                 info = ydl.extract_info(url, download=False)
 
             # Metadata
+            requester = message.from_user.mention
             title = info.get("title", "N/A")
             uploader = info.get("uploader", "N/A")
             upload_date = info.get("upload_date", "N/A")
@@ -44,19 +49,19 @@ def register_tiktok(app: Client):
             like_count = info.get("like_count", 0)
             comment_count = info.get("comment_count", 0)
             shares = info.get("share_count", 0)
-            requester = message.from_user.mention
 
-            # Metadata caption
+            # Caption: requester top line
             caption = (
+                f"🎬 Title: {title}\n"
                 f"👁 Views: {view_count}\n"
                 f"👍 Likes: {like_count}\n"
                 f"💬 Comments: {comment_count}\n"
                 f"🔄 Shares: {shares}\n\n"
-                f"🎬 Title: {title}\n"
                 f"👤 Author: {uploader}\n"
                 f"📅 Uploaded: {upload_date}\n"
-                f"⏱ Duration: {duration}s\n\n"
-                f"Requested by: {requester}"
+                f"⏱ Duration: {duration}s"
+
+                f"Requested by: {requester}\n\n"
             )
 
             # Inline buttons
@@ -81,7 +86,7 @@ def register_tiktok(app: Client):
 
         try:
             if option == "wm":
-                ydl_opts = ydl_opts_video  # With watermark (default)
+                ydl_opts = ydl_opts_video
             elif option == "nowm":
                 ydl_opts = ydl_opts_video.copy()
                 ydl_opts["outtmpl"] = "%(id)s_no_watermark.%(ext)s"
@@ -94,15 +99,27 @@ def register_tiktok(app: Client):
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 file_path = ydl.prepare_filename(info)
+                if option == "audio":
+                    file_path = os.path.splitext(file_path)[0] + ".mp3"
 
-            # Send file
+            # Send file with caption
             if option == "audio":
-                await client.send_audio(chat_id=callback.message.chat.id, audio=file_path, caption=f"🎵 {info.get('title', 'Audio')}\nRequested by: {callback.from_user.mention}")
+                await client.send_audio(
+                    chat_id=callback.message.chat.id,
+                    audio=file_path,
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]])
+                )
             else:
-                await client.send_video(chat_id=callback.message.chat.id, video=file_path, caption=f"🎬 {info.get('title', 'Video')}\nRequested by: {callback.from_user.mention}")
+                await client.send_video(
+                    chat_id=callback.message.chat.id,
+                    video=file_path,
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]])
+                )
 
             await processing.delete()
-            os.remove(file_path)  # Remove temp file
+            os.remove(file_path)
 
         except Exception as e:
             await processing.edit(f"⚠️ Error while downloading: {e}")
