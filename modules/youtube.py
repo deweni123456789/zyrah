@@ -7,10 +7,8 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from yt_dlp import YoutubeDL
 
-# store message_id -> url for callbacks
-URL_STORE = {}
+URL_STORE = {}  # (chat_id, msg_id) -> url
 
-# yt-dlp options base
 def get_ydl_opts(is_audio=False, cookies_path=None):
     opts = {
         "quiet": True,
@@ -38,7 +36,6 @@ def download_with_ytdlp(url, is_audio=False, cookies_path=None):
     with YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
         file_path = ydl.prepare_filename(info)
-        # if audio, extension changed to .mp3
         if is_audio:
             base, _ = os.path.splitext(file_path)
             file_path = base + ".mp3"
@@ -53,25 +50,25 @@ def register_youtube(app: Client):
     async def youtube_handler(client, message):
         url = message.text.strip()
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📹 Download Video", callback_data="yt_video")],
-            [InlineKeyboardButton("🎵 Download Audio", callback_data="yt_audio")],
+            [InlineKeyboardButton("📹 Download Video", callback_data=f"yt_video|{url}")],
+            [InlineKeyboardButton("🎵 Download Audio", callback_data=f"yt_audio|{url}")],
             [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
         ])
         sent = await message.reply("Choose download option:", reply_markup=buttons)
-        URL_STORE[(sent.chat.id, sent.message_id)] = url
+        URL_STORE[(sent.chat.id, sent.id)] = url   # ✅ use .id instead of .message_id
 
     @app.on_callback_query(filters.regex("^yt_"))
     async def callback_handler(client, callback: CallbackQuery):
-        key = (callback.message.chat.id, callback.message.message_id)
-        url = URL_STORE.get(key)
-        if not url:
-            await callback.answer("Expired or missing URL. Please send the link again.", show_alert=True)
+        try:
+            option, url = callback.data.split("|", 1)   # ✅ always split safely
+        except ValueError:
+            await callback.answer("Invalid callback data", show_alert=True)
             return
 
-        is_audio = callback.data == "yt_audio"
+        is_audio = option == "yt_audio"
         await callback.message.edit("⏳ Downloading, please wait...")
 
-        cookies_path = os.path.join(os.getcwd(), "cookies.txt")  # optional
+        cookies_path = os.path.join(os.getcwd(), "cookies.txt")
         try:
             file_path, info = await run_blocking(download_with_ytdlp, url, is_audio, cookies_path)
         except Exception as e:
@@ -100,4 +97,3 @@ def register_youtube(app: Client):
                 os.remove(file_path)
             except:
                 pass
-            URL_STORE.pop(key, None)
