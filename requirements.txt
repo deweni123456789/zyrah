@@ -1,4 +1,4 @@
 pyrogram==2.0.106
 tgcrypto
 requests
-TikTokApi==0.16.6
+TikTokApi>=3.0.0
