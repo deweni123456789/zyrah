@@ -38,7 +38,6 @@ def register_tiktok(app: Client):
                 info = ydl.extract_info(url, download=False)
 
             # Metadata
-            requester = message.from_user.mention
             title = info.get("title", "N/A")
             uploader = info.get("uploader", "N/A")
             upload_date = info.get("upload_date", "N/A")
@@ -49,19 +48,19 @@ def register_tiktok(app: Client):
             like_count = info.get("like_count", 0)
             comment_count = info.get("comment_count", 0)
             shares = info.get("share_count", 0)
+            requester = message.from_user.mention
 
-            # Caption: requester top line
+            # Caption: metadata top, requester bottom
             caption = (
-                f"🎬 Title: {title}\n"
                 f"👁 Views: {view_count}\n"
                 f"👍 Likes: {like_count}\n"
                 f"💬 Comments: {comment_count}\n"
                 f"🔄 Shares: {shares}\n\n"
+                f"🎬 Title: {title}\n"
                 f"👤 Author: {uploader}\n"
                 f"📅 Uploaded: {upload_date}\n"
-                f"⏱ Duration: {duration}s"
-
-                f"Requested by: {requester}\n\n"
+                f"⏱ Duration: {duration}s\n\n"
+                f"Requested by: {requester}"
             )
 
             # Inline buttons
@@ -85,6 +84,35 @@ def register_tiktok(app: Client):
         processing = await callback.message.reply("⏳ Downloading... Please wait")
 
         try:
+            # Extract info again to build caption
+            with YoutubeDL(ydl_opts_video) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+            title = info.get("title", "N/A")
+            uploader = info.get("uploader", "N/A")
+            upload_date = info.get("upload_date", "N/A")
+            if upload_date != "N/A":
+                upload_date = datetime.datetime.strptime(upload_date, "%Y%m%d").strftime("%Y-%m-%d")
+            duration = info.get("duration", 0)
+            view_count = info.get("view_count", 0)
+            like_count = info.get("like_count", 0)
+            comment_count = info.get("comment_count", 0)
+            shares = info.get("share_count", 0)
+            requester = callback.from_user.mention
+
+            # Build caption inside callback
+            caption = (
+                f"👁 Views: {view_count}\n"
+                f"👍 Likes: {like_count}\n"
+                f"💬 Comments: {comment_count}\n"
+                f"🔄 Shares: {shares}\n\n"
+                f"🎬 Title: {title}\n"
+                f"👤 Author: {uploader}\n"
+                f"📅 Uploaded: {upload_date}\n"
+                f"⏱ Duration: {duration}s\n\n"
+                f"Requested by: {requester}"
+            )
+
             if option == "wm":
                 ydl_opts = ydl_opts_video
             elif option == "nowm":
