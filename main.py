@@ -1,7 +1,6 @@
 import os
 from pyrogram import Client
 from modules.tiktok import register_tiktok
-from modules.instagram import register_instagram
 
 API_ID = int(os.getenv("API_ID", "5047271"))
 API_HASH = os.getenv("API_HASH", "047d9ed308172e637d4265e1d9ef0c27")  # ✅ fixed (removed extra ')')
@@ -16,8 +15,8 @@ app = Client(
 
 # Register modules
 register_tiktok(app)
-register_instagram(app)   # ✅ Instagram included
 
 print("🚀 Social Media Downloader Bot started...")
 
 app.run()
+
