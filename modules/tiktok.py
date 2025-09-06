@@ -1,60 +1,54 @@
+import io
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from TikTokApi import TikTokApi
+from yt_dlp import YoutubeDL
 import datetime
-import asyncio
+
+ydl_opts = {
+    "format": "best",
+    "outtmpl": "%(id)s.%(ext)s",
+    "noplaylist": True,
+    "quiet": True,
+    "no_warnings": True,
+}
 
 def register_tiktok(app: Client):
     @app.on_message(filters.private & filters.regex(r"(https?://)?(www\.)?tiktok\.com/\S+"))
     async def tiktok_handler(client, message):
         url = message.text.strip()
-
-        # Send temporary processing message
-        processing_msg = await message.reply("⏳ Processing TikTok link... Please wait")
+        processing_msg = await message.reply("⏳ Downloading TikTok video... Please wait")
 
         try:
-            # TikTokApi async session
-            async with TikTokApi() as api:
-                video_data = await api.video(url=url)
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
 
-                # Download bytes
-                video_bytes = await video_data.bytes()
-                video_no_watermark_bytes = await video_data.bytes(no_watermark=True)
-                audio_bytes = await video_data.bytes(audio=True)
+            # Metadata
+            title = info.get("title", "N/A")
+            uploader = info.get("uploader", "N/A")
+            upload_date = info.get("upload_date", "N/A")
+            if upload_date != "N/A":
+                upload_date = datetime.datetime.strptime(upload_date, "%Y%m%d").strftime("%Y-%m-%d")
+            duration = info.get("duration", 0)
+            view_count = info.get("view_count", 0)
+            like_count = info.get("like_count", 0)
+            comment_count = info.get("comment_count", 0)
 
-                # Metadata
-                info = await video_data.info()
-                title = info.get("desc", "N/A")
-                author = info.get("author", {}).get("uniqueId", "N/A")
-                upload_time = datetime.datetime.fromtimestamp(info.get("createTime", 0))
-                duration = info.get("video", {}).get("duration", 0)
-                stats = info.get("stats", {})
-                likes = stats.get("diggCount", 0)
-                comments = stats.get("commentCount", 0)
-                shares = stats.get("shareCount", 0)
+            caption = (
+                f"🎬 Title: {title}\n"
+                f"👤 Author: {uploader}\n"
+                f"📅 Uploaded: {upload_date}\n"
+                f"⏱ Duration: {duration}s\n"
+                f"👁 Views: {view_count} | 👍 Likes: {like_count} | 💬 Comments: {comment_count}"
+            )
 
-                caption = (
-                    f"🎬 Title: {title}\n"
-                    f"👤 Author: {author}\n"
-                    f"📅 Uploaded: {upload_time}\n"
-                    f"⏱ Duration: {duration}s\n"
-                    f"👍 Likes: {likes} | 💬 Comments: {comments} | 🔄 Shares: {shares}"
-                )
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("Download Video", url=url)],
+                [InlineKeyboardButton("Download Audio", url=url)],
+                [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
+            ])
 
-                buttons = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Without Watermark", url="https://tiktok.com")],
-                    [InlineKeyboardButton("With Watermark", url="https://tiktok.com")],
-                    [InlineKeyboardButton("Audio Only", url="https://tiktok.com")],
-                    [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
-                ])
-
-                # Delete processing message
-                await processing_msg.delete()
-
-                # Send video/audio files
-                await client.send_video(chat_id=message.chat.id, video=video_no_watermark_bytes, caption=caption)
-                await client.send_video(chat_id=message.chat.id, video=video_bytes)
-                await client.send_audio(chat_id=message.chat.id, audio=audio_bytes)
+            await processing_msg.delete()
+            await client.send_message(chat_id=message.chat.id, text=caption, reply_markup=buttons)
 
         except Exception as e:
             await processing_msg.edit(f"⚠️ Error while downloading: {e}")
