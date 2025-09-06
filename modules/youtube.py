@@ -1,55 +1,92 @@
 import os
+import requests
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from yt_dlp import YoutubeDL
 
-ydl_opts_video = {
-    "format": "best",
-    "quiet": True,
-    "outtmpl": "%(id)s.%(ext)s"
-}
-
-ydl_opts_audio = {
-    "format": "bestaudio/best",
-    "quiet": True,
-    "outtmpl": "%(id)s.%(ext)s",
-    "postprocessors": [{"key": "FFmpegExtractAudio","preferredcodec": "mp3","preferredquality": "192"}]
-}
+# Function to fetch download links from SaveFrom.net
+def get_savefrom_links(youtube_url):
+    api_url = "https://worker.sf-api.com/savefrom.php"  # unofficial API
+    params = {"url": youtube_url, "r": "user"}
+    r = requests.get(api_url, params=params)
+    data = r.json()
+    links = []
+    for item in data.get("url", []):
+        links.append({
+            "quality": item.get("quality"),
+            "type": item.get("type"),
+            "link": item.get("url")
+        })
+    return links
 
 def register_youtube(app: Client):
     @app.on_message(filters.private & filters.regex(r"(https?://)?(www\.)?(youtube\.com|youtu\.be)/\S+"))
     async def youtube_handler(client, message):
         url = message.text.strip()
-        msg = await message.reply("⏳ Select download option...")
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📹 Download Video", callback_data=f"video|{url}")],
-            [InlineKeyboardButton("🎵 Download Audio", callback_data=f"audio|{url}")],
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
-        ])
-        await msg.edit("Choose an option:", reply_markup=buttons)
+        fetching_msg = await message.reply("⏳ Fetching YouTube info... Please wait")
+
+        try:
+            links = get_savefrom_links(url)
+            if not links:
+                await fetching_msg.edit("⚠️ Unable to fetch download links")
+                return
+
+            # Choose best video and audio links
+            video_link = next((l["link"] for l in links if "video" in l["type"]), None)
+            audio_link = next((l["link"] for l in links if "audio" in l["type"]), None)
+
+            # Metadata (simple, without API)
+            title = url.split("/")[-1]  # fallback as we can't get real title without cookies
+            requester = message.from_user.mention
+            caption = f"🎬 Title: {title}\nRequested by: {requester}"
+
+            # Inline buttons
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📹 Download Video", callback_data=f"video|{video_link}")],
+                [InlineKeyboardButton("🎵 Download Audio", callback_data=f"audio|{audio_link}")],
+                [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
+            ])
+
+            await message.reply("Select download option:", reply_markup=buttons)
+            await fetching_msg.delete()
+
+        except Exception as e:
+            await fetching_msg.edit(f"⚠️ Error: {e}")
 
     @app.on_callback_query()
     async def button_click(client: Client, callback: CallbackQuery):
-        option, url = callback.data.split("|")
-        downloading_msg = await callback.message.reply("⏳ Downloading...")
+        data = callback.data
+        option, download_url = data.split("|")
+        downloading_msg = await callback.message.reply("⏳ Downloading... Please wait")
 
         try:
-            ydl_opts = ydl_opts_video if option=="video" else ydl_opts_audio
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                file_path = ydl.prepare_filename(info)
-                if option=="audio":
-                    file_path = os.path.splitext(file_path)[0] + ".mp3"
+            # Download file
+            local_filename = download_url.split("/")[-1]
+            r = requests.get(download_url, stream=True)
+            with open(local_filename, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024*1024):
+                    if chunk:
+                        f.write(chunk)
 
-            if option=="audio":
-                await client.send_audio(chat_id=callback.message.chat.id, audio=file_path,
-                                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]]))
+            # Send file
+            if option == "audio":
+                await client.send_audio(
+                    chat_id=callback.message.chat.id,
+                    audio=local_filename,
+                    caption="Downloaded via SaveFrom.net",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]])
+                )
             else:
-                await client.send_video(chat_id=callback.message.chat.id, video=file_path,
-                                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]]))
+                await client.send_video(
+                    chat_id=callback.message.chat.id,
+                    video=local_filename,
+                    caption="Downloaded via SaveFrom.net",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]])
+                )
+
             await downloading_msg.delete()
-            await callback.message.delete()
-            os.remove(file_path)
+            if callback.message.reply_markup:
+                await callback.message.delete()
+            os.remove(local_filename)
 
         except Exception as e:
-            await downloading_msg.edit(f"⚠️ Error: {e}")
+            await downloading_msg.edit(f"⚠️ Error while downloading: {e}")
