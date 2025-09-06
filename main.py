@@ -16,10 +16,10 @@ app = Client(
 
 # Register modules
 register_tiktok(app)
-register_youtube(app)
 
 print("🚀 Social Media Downloader Bot started...")
 
 app.run()
+
 
 
