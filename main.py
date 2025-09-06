@@ -1,11 +1,17 @@
-import os
+import os, sys
 from pyrogram import Client
 from modules.tiktok import register_tiktok
 from modules.youtube import register_youtube
 
-API_ID = int(os.getenv("API_ID", "5047271"))
-API_HASH = os.getenv("API_HASH", "047d9ed308172e637d4265e1d9ef0c27")
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7896090354:AAFhFhcbEoJreu1vUZN-kY673pJqV62eMoU")
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+if not all([API_ID, API_HASH, BOT_TOKEN]):
+    print("❌ Missing API_ID / API_HASH / BOT_TOKEN")
+    sys.exit(1)
+
+API_ID = int(API_ID)
 
 app = Client(
     "social_downloader_bot",
@@ -18,11 +24,6 @@ app = Client(
 register_tiktok(app)
 register_youtube(app)
 
+app.start()
 print("🚀 Social Media Downloader Bot started...")
-
-app.run()
-
-
-
-
-
+app.idle()
