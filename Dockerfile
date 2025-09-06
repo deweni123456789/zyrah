@@ -1,24 +1,21 @@
-# Base image with Python
+# Step 1: Use official Python base image
 FROM python:3.11-slim
 
-# Install FFmpeg
-RUN apt-get update && apt-get install -y ffmpeg
+# Step 2: Install FFmpeg and system dependencies
+RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
 
-# Set working directory
+# Step 3: Set working directory
 WORKDIR /app
 
-# Copy requirements
+# Step 4: Copy requirements.txt and install dependencies
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
+# Step 5: Copy all project files
 COPY . .
 
-# Set environment variables (example)
+# Step 6: Set environment variables (optional)
 ENV PYTHONUNBUFFERED=1
 
-# Start the bot
+# Step 7: Start the bot
 CMD ["python", "main.py"]
-
