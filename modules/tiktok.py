@@ -6,10 +6,10 @@ import datetime
 
 ydl_opts = {
     "format": "best",
-    "outtmpl": "%(id)s.%(ext)s",
-    "noplaylist": True,
     "quiet": True,
     "no_warnings": True,
+    "noplaylist": True,
+    "outtmpl": "%(id)s.%(ext)s"
 }
 
 def register_tiktok(app: Client):
@@ -20,7 +20,8 @@ def register_tiktok(app: Client):
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+                info = ydl.extract_info(url, download=True)
+                file_path = ydl.prepare_filename(info)
 
             # Metadata
             title = info.get("title", "N/A")
@@ -32,23 +33,28 @@ def register_tiktok(app: Client):
             view_count = info.get("view_count", 0)
             like_count = info.get("like_count", 0)
             comment_count = info.get("comment_count", 0)
+            shares = info.get("share_count", 0)
+
+            # Requester mention
+            requester = message.from_user.mention
 
             caption = (
+                f"👁 Views: {view_count} | 👍 Likes: {like_count} | 💬 Comments: {comment_count} | 🔄 Shares: {shares}\n\n"
                 f"🎬 Title: {title}\n"
                 f"👤 Author: {uploader}\n"
                 f"📅 Uploaded: {upload_date}\n"
-                f"⏱ Duration: {duration}s\n"
-                f"👁 Views: {view_count} | 👍 Likes: {like_count} | 💬 Comments: {comment_count}"
+                f"⏱ Duration: {duration}s\n\n"
+                f"Requested by: {requester}"
             )
 
             buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("Download Video", url=url)],
-                [InlineKeyboardButton("Download Audio", url=url)],
                 [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
             ])
 
             await processing_msg.delete()
-            await client.send_message(chat_id=message.chat.id, text=caption, reply_markup=buttons)
+
+            # Upload video file with metadata and mention
+            await client.send_video(chat_id=message.chat.id, video=file_path, caption=caption, reply_markup=buttons)
 
         except Exception as e:
             await processing_msg.edit(f"⚠️ Error while downloading: {e}")
