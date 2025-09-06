@@ -13,7 +13,7 @@ ydl_opts_video = {
     "outtmpl": "%(id)s.%(ext)s"
 }
 
-# Audio download options without ffmpeg_location
+# Audio download options (yt_dlp uses system FFmpeg)
 ydl_opts_audio = {
     "format": "bestaudio/best",
     "quiet": True,
@@ -31,7 +31,7 @@ def register_tiktok(app: Client):
     @app.on_message(filters.private & filters.regex(r"(https?://)?(www\.)?tiktok\.com/\S+"))
     async def tiktok_handler(client, message):
         url = message.text.strip()
-        processing_msg = await message.reply("⏳ Fetching TikTok info... Please wait")
+        fetching_msg = await message.reply("⏳ Fetching TikTok info... Please wait")
 
         try:
             with YoutubeDL(ydl_opts_video) as ydl:
@@ -70,21 +70,24 @@ def register_tiktok(app: Client):
                 [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
             ])
 
+            # Send selection message
             select_msg = await message.reply("Select download option:", reply_markup=buttons)
+            await fetching_msg.delete()  # Delete fetching message
 
         except Exception as e:
-            await processing_msg.edit(f"⚠️ Error while fetching info: {e}")
+            await fetching_msg.edit(f"⚠️ Error while fetching info: {e}")
 
     @app.on_callback_query()
     async def button_click(client: Client, callback: CallbackQuery):
         data = callback.data
         option, url = data.split("|")
-        processing = await callback.message.reply("⏳ Downloading... Please wait")
+        downloading_msg = await callback.message.reply("⏳ Downloading... Please wait")
 
         try:
             with YoutubeDL(ydl_opts_video) as ydl:
                 info = ydl.extract_info(url, download=False)
 
+            # Metadata
             title = info.get("title", "N/A")
             uploader = info.get("uploader", "N/A")
             upload_date = info.get("upload_date", "N/A")
@@ -109,6 +112,7 @@ def register_tiktok(app: Client):
                 f"Requested by: {requester}"
             )
 
+            # Select options
             if option == "wm":
                 ydl_opts = ydl_opts_video
             elif option == "nowm":
@@ -117,9 +121,10 @@ def register_tiktok(app: Client):
             elif option == "audio":
                 ydl_opts = ydl_opts_audio
             else:
-                await processing.edit("❌ Unknown option")
+                await downloading_msg.edit("❌ Unknown option")
                 return
 
+            # Download
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 file_path = ydl.prepare_filename(info)
@@ -142,11 +147,13 @@ def register_tiktok(app: Client):
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]])
                 )
 
-            # Clean messages
-            await processing.delete()
-            if callback.message.reply_markup:  # delete select download option msg
-                await callback.message.delete()
+            # Delete messages after sending
+            await downloading_msg.delete()       # "Downloading..." message
+            if callback.message.reply_markup:
+                await callback.message.delete()  # "Select download option" message
+
+            # Remove temp file
             os.remove(file_path)
 
         except Exception as e:
-            await processing.edit(f"⚠️ Error while downloading: {e}")
+            await downloading_msg.edit(f"⚠️ Error while downloading: {e}")
