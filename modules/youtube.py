@@ -5,7 +5,8 @@ from yt_dlp import YoutubeDL
 import datetime
 
 # Path to cookies file (exported from your browser)
-COOKIES_FILE = "cookies.txt"  # place this in project root
+COOKIES_FILE = os.path.join(os.getcwd(), "cookies.txt")
+  # place this in project root
 
 # Video download options
 ydl_opts_video = {
