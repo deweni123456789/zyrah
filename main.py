@@ -3,9 +3,9 @@ from pyrogram import Client
 from modules.tiktok import register_tiktok
 from modules.youtube import register_youtube
 
-API_ID = os.getenv("API_ID")
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+API_ID = os.getenv("5047271")
+API_HASH = os.getenv("047d9ed308172e637d4265e1d9ef0c27")
+BOT_TOKEN = os.getenv("7896090354:AAFhFhcbEoJreu1vUZN-kY673pJqV62eMoU")
 
 if not all([API_ID, API_HASH, BOT_TOKEN]):
     print("❌ Missing API_ID / API_HASH / BOT_TOKEN")
@@ -27,3 +27,4 @@ register_youtube(app)
 app.start()
 print("🚀 Social Media Downloader Bot started...")
 app.idle()
+
