@@ -1,31 +1,25 @@
-import re
+import re, os, shutil
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import os
-from instaloader import Instaloader, Post
+import instaloader
+from moviepy.editor import VideoFileClip
 
 # Regex to detect Instagram post URLs
 INSTAGRAM_REGEX = re.compile(r"(https?://(www\.)?instagram\.com/p/\S+/)")
 
 # Initialize Instaloader
-L = Instaloader(download_videos=True, download_comments=False, save_metadata=False, download_geotags=False)
+L = instaloader.Instaloader(
+    download_videos=True,
+    download_comments=False,
+    save_metadata=False,
+    download_geotags=False
+)
 
-def get_instagram_metadata(url):
-    try:
-        post = Post.from_shortcode(L.context, url.split("/")[-2])
-        metadata = {
-            "caption": post.caption or "No caption",
-            "uploader": post.owner_username,
-            "likes": post.likes,
-            "comments": post.comments,
-            "url": url
-        }
-        return metadata
-    except Exception as e:
-        print("Metadata fetch error:", e)
-        return None
+DOWNLOAD_DIR = "downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def register_instagram(app: Client):
+
     @app.on_message(filters.private | filters.group)
     async def instagram_handler(client, message):
         if not message.text:
@@ -35,41 +29,55 @@ def register_instagram(app: Client):
             return
 
         url = m.group(0)
-        metadata = get_instagram_metadata(url)
+        shortcode = url.split("/")[-2]
 
+        try:
+            post = instaloader.Post.from_shortcode(L.context, shortcode)
+        except Exception as e:
+            await message.reply_text(f"❌ Failed to fetch Instagram post: {e}")
+            return
+
+        # Metadata
+        metadata_text = f"Instagram post detected!\n\nUploader: {post.owner_username}\nCaption: {post.caption or 'No caption'}\nLikes: {post.likes}\nComments: {post.comments}"
+
+        # Buttons
         buttons = [
-            [InlineKeyboardButton("Download Video", callback_data=f"ig_video|{url}")],
-            [InlineKeyboardButton("Download Audio", callback_data=f"ig_audio|{url}")],
+            [InlineKeyboardButton("Download Video", callback_data=f"ig_video|{shortcode}")],
+            [InlineKeyboardButton("Download Audio", callback_data=f"ig_audio|{shortcode}")],
             [InlineKeyboardButton("Developer @DEWENI2", url="https://t.me/deweni2")]
         ]
-        await message.reply_text(
-            text=f"Instagram post detected!\n\nUploader: {metadata['uploader'] if metadata else 'N/A'}\nCaption: {metadata['caption'] if metadata else 'N/A'}\nLikes: {metadata['likes'] if metadata else 'N/A'}\nComments: {metadata['comments'] if metadata else 'N/A'}",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
+
+        await message.reply_text(text=metadata_text, reply_markup=InlineKeyboardMarkup(buttons))
 
     @app.on_callback_query(filters.regex(r"^ig_"))
     async def ig_callback(client, callback_query):
-        action, url = callback_query.data.split("|")
+        action, shortcode = callback_query.data.split("|")
         await callback_query.answer("Downloading...")
 
-        # Download using Instaloader
+        post_dir = os.path.join(DOWNLOAD_DIR, shortcode)
+        os.makedirs(post_dir, exist_ok=True)
+
         try:
-            post = Post.from_shortcode(L.context, url.split("/")[-2])
-            filename = f"{post.shortcode}.mp4"
+            post = instaloader.Post.from_shortcode(L.context, shortcode)
+            # Download video once
+            L.download_post(post, target=post_dir)
+            video_files = [f for f in os.listdir(post_dir) if f.endswith(".mp4")]
+            if not video_files:
+                await callback_query.message.edit_text("❌ No video found in this post.")
+                return
+            video_path = os.path.join(post_dir, video_files[0])
 
             if action == "ig_video":
-                L.download_post(post, target=f"downloads/{post.shortcode}")
-                file_path = f"downloads/{post.shortcode}/{post.shortcode}.mp4"
-                await client.send_video(callback_query.from_user.id, file_path)
+                await client.send_video(callback_query.message.chat.id, video_path)
             elif action == "ig_audio":
-                # Convert video to audio
-                import moviepy.editor as mp
-                L.download_post(post, target=f"downloads/{post.shortcode}")
-                video_path = f"downloads/{post.shortcode}/{post.shortcode}.mp4"
-                audio_path = f"downloads/{post.shortcode}/{post.shortcode}.mp3"
-                clip = mp.VideoFileClip(video_path)
+                audio_path = os.path.join(post_dir, f"{shortcode}.mp3")
+                clip = VideoFileClip(video_path)
                 clip.audio.write_audiofile(audio_path)
-                await client.send_audio(callback_query.from_user.id, audio_path)
+                clip.close()
+                await client.send_audio(callback_query.message.chat.id, audio_path)
+
+            # Clean up
+            shutil.rmtree(post_dir, ignore_errors=True)
 
         except Exception as e:
             await callback_query.message.edit_text(f"❌ Error downloading: {e}")
