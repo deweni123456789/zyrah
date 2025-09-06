@@ -4,6 +4,9 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from yt_dlp import YoutubeDL
 import datetime
 
+# Set your FFmpeg path if not in system PATH
+FFMPEG_PATH = "C:/ffmpeg/bin/ffmpeg.exe"  # Windows example, change as needed
+
 # Video download options
 ydl_opts_video = {
     "format": "best",
@@ -13,7 +16,7 @@ ydl_opts_video = {
     "outtmpl": "%(id)s.%(ext)s"
 }
 
-# Audio download options with postprocessor to ensure audio file
+# Audio download options with FFmpeg
 ydl_opts_audio = {
     "format": "bestaudio/best",
     "quiet": True,
@@ -24,6 +27,7 @@ ydl_opts_audio = {
         "key": "FFmpegExtractAudio",
         "preferredcodec": "mp3",
         "preferredquality": "192",
+        "ffmpeg_location": FFMPEG_PATH
     }]
 }
 
@@ -50,13 +54,13 @@ def register_tiktok(app: Client):
             shares = info.get("share_count", 0)
             requester = message.from_user.mention
 
-            # Caption: metadata top, requester bottom
+            # Caption: Title top, metadata, requested by bottom
             caption = (
-                f"🎬 Title: {title}\n"
+                f"🎬 Title: {title}\n\n"
                 f"👁 Views: {view_count}\n"
                 f"👍 Likes: {like_count}\n"
                 f"💬 Comments: {comment_count}\n"
-                f"🔄 Shares: {shares}\n\n"
+                f"🔄 Shares: {shares}\n"
                 f"👤 Author: {uploader}\n"
                 f"📅 Uploaded: {upload_date}\n"
                 f"⏱ Duration: {duration}s\n\n"
@@ -100,13 +104,12 @@ def register_tiktok(app: Client):
             shares = info.get("share_count", 0)
             requester = callback.from_user.mention
 
-            # Build caption inside callback
             caption = (
+                f"🎬 Title: {title}\n\n"
                 f"👁 Views: {view_count}\n"
                 f"👍 Likes: {like_count}\n"
                 f"💬 Comments: {comment_count}\n"
-                f"🔄 Shares: {shares}\n\n"
-                f"🎬 Title: {title}\n"
+                f"🔄 Shares: {shares}\n"
                 f"👤 Author: {uploader}\n"
                 f"📅 Uploaded: {upload_date}\n"
                 f"⏱ Duration: {duration}s\n\n"
@@ -151,4 +154,3 @@ def register_tiktok(app: Client):
 
         except Exception as e:
             await processing.edit(f"⚠️ Error while downloading: {e}")
-
