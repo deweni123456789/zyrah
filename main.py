@@ -4,7 +4,7 @@ from modules.tiktok import register_tiktok
 from modules.instagram import register_instagram
 
 API_ID = int(os.getenv("API_ID", "5047271"))
-API_HASH = os.getenv("API_HASH", "047d9ed308172e637d4265e1d9ef0c27"))
+API_HASH = os.getenv("API_HASH", "047d9ed308172e637d4265e1d9ef0c27")  # ✅ fixed (removed extra ')')
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7896090354:AAFhFhcbEoJreu1vUZN-kY673pJqV62eMoU")
 
 app = Client(
