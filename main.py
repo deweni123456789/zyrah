@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from pyrogram import Client
 from modules.tiktok import register_tiktok
+from modules.youtube import register_youtube
 
 load_dotenv()  # Load .env file
 
@@ -17,6 +18,9 @@ app = Client(
 )
 
 register_tiktok(app)
+register_youtube(app)
+
 
 print("🚀 Social Media Downloader Bot started...")
 app.run()
+
