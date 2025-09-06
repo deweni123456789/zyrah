@@ -2,7 +2,6 @@ import re, os, shutil
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import instaloader
-from moviepy.editor import VideoFileClip
 
 # Regex to detect Instagram post URLs
 INSTAGRAM_REGEX = re.compile(r"(https?://(www\.)?instagram\.com/p/\S+/)")
