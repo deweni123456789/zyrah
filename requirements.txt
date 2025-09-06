@@ -3,6 +3,7 @@ tgcrypto
 requests
 yt-dlp
 instaloader
+moviepy
 
 
 
