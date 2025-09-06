@@ -52,11 +52,11 @@ def register_tiktok(app: Client):
 
             # Caption: metadata top, requester bottom
             caption = (
+                f"🎬 Title: {title}\n"
                 f"👁 Views: {view_count}\n"
                 f"👍 Likes: {like_count}\n"
                 f"💬 Comments: {comment_count}\n"
                 f"🔄 Shares: {shares}\n\n"
-                f"🎬 Title: {title}\n"
                 f"👤 Author: {uploader}\n"
                 f"📅 Uploaded: {upload_date}\n"
                 f"⏱ Duration: {duration}s\n\n"
@@ -151,3 +151,4 @@ def register_tiktok(app: Client):
 
         except Exception as e:
             await processing.edit(f"⚠️ Error while downloading: {e}")
+
