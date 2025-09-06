@@ -2,8 +2,10 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from TikTokApi import TikTokApi
 import datetime
+import asyncio
 
-api = TikTokApi.get_instance()
+# Initialize TikTokApi (async)
+api = TikTokApi()
 
 def register_tiktok(app: Client):
     @app.on_message(filters.private & filters.regex(r"(https?://)?(www\.)?tiktok\.com/\S+"))
@@ -12,15 +14,16 @@ def register_tiktok(app: Client):
         await message.reply("⏳ Processing TikTok link... Please wait")
 
         try:
-            video_data = api.video(url=url)
+            # Use asyncio run to call async TikTokApi methods
+            video_data = await api.video(url=url)
 
             # Download bytes
-            video_bytes = video_data.bytes()
-            video_no_watermark_bytes = video_data.bytes(no_watermark=True)
-            audio_bytes = video_data.bytes(audio=True)
+            video_bytes = await video_data.bytes()
+            video_no_watermark_bytes = await video_data.bytes(no_watermark=True)
+            audio_bytes = await video_data.bytes(audio=True)
 
             # Metadata
-            info = video_data.info()
+            info = await video_data.info()
             title = info.get("desc", "N/A")
             author = info.get("author", {}).get("uniqueId", "N/A")
             upload_time = datetime.datetime.fromtimestamp(info.get("createTime", 0))
