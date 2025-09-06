@@ -1,8 +1,8 @@
-python-dotenv
 pyrogram==2.0.106
 tgcrypto
 requests
 yt-dlp
+
 
 
 
