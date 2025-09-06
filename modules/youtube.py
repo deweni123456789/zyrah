@@ -4,12 +4,16 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from yt_dlp import YoutubeDL
 import datetime
 
+# Path to cookies file (exported from your browser)
+COOKIES_FILE = "cookies.txt"  # place this in project root
+
 # Video download options
 ydl_opts_video = {
     "format": "best",
     "quiet": True,
     "no_warnings": True,
     "noplaylist": True,
+    "cookiefile": COOKIES_FILE,
     "outtmpl": "%(id)s.%(ext)s"
 }
 
@@ -19,6 +23,7 @@ ydl_opts_audio = {
     "quiet": True,
     "no_warnings": True,
     "noplaylist": True,
+    "cookiefile": COOKIES_FILE,
     "outtmpl": "%(id)s.%(ext)s",
     "postprocessors": [{
         "key": "FFmpegExtractAudio",
@@ -134,9 +139,9 @@ def register_youtube(app: Client):
                 )
 
             # Clean messages
-            await downloading_msg.delete()       # "Downloading..." message
+            await downloading_msg.delete()
             if callback.message.reply_markup:
-                await callback.message.delete()  # "Select download option" message
+                await callback.message.delete()
 
             # Remove temp file
             os.remove(file_path)
