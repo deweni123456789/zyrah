@@ -4,10 +4,8 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from yt_dlp import YoutubeDL
 import datetime
 
-# Path to cookies file for restricted videos
-COOKIES_FILE = os.path.join(os.getcwd(), "cookies.txt")  # Place cookies.txt in project root
+COOKIES_FILE = os.path.join(os.getcwd(), "cookies.txt")  # Must exist in root
 
-# Download options
 ydl_opts_video = {
     "format": "best",
     "quiet": True,
@@ -41,7 +39,6 @@ def register_youtube(app: Client):
             with YoutubeDL(ydl_opts_video) as ydl:
                 info = ydl.extract_info(url, download=False)
 
-            # Inline buttons
             buttons = InlineKeyboardMarkup([
                 [InlineKeyboardButton("📹 Download Video", callback_data=f"video|{url}")],
                 [InlineKeyboardButton("🎵 Download Audio", callback_data=f"audio|{url}")],
@@ -68,7 +65,7 @@ def register_youtube(app: Client):
                 if option == "audio":
                     file_path = os.path.splitext(file_path)[0] + ".mp3"
 
-            # Metadata caption
+            # Metadata
             title = info.get("title", "N/A")
             uploader = info.get("uploader", "N/A")
             upload_date = info.get("upload_date", "N/A")
@@ -107,7 +104,7 @@ def register_youtube(app: Client):
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]])
                 )
 
-            # Clean messages and remove temp file
+            # Cleanup
             await downloading_msg.delete()
             if callback.message.reply_markup:
                 await callback.message.delete()
