@@ -4,9 +4,6 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from yt_dlp import YoutubeDL
 import datetime
 
-# Set your FFmpeg path if not in system PATH
-FFMPEG_PATH = "C:/ffmpeg/bin/ffmpeg.exe"  # Windows example, change as needed
-
 # Video download options
 ydl_opts_video = {
     "format": "best",
@@ -16,7 +13,7 @@ ydl_opts_video = {
     "outtmpl": "%(id)s.%(ext)s"
 }
 
-# Audio download options with FFmpeg
+# Audio download options without ffmpeg_location
 ydl_opts_audio = {
     "format": "bestaudio/best",
     "quiet": True,
@@ -26,8 +23,7 @@ ydl_opts_audio = {
     "postprocessors": [{
         "key": "FFmpegExtractAudio",
         "preferredcodec": "mp3",
-        "preferredquality": "192",
-        "ffmpeg_location": FFMPEG_PATH
+        "preferredquality": "192"
     }]
 }
 
@@ -54,7 +50,6 @@ def register_tiktok(app: Client):
             shares = info.get("share_count", 0)
             requester = message.from_user.mention
 
-            # Caption: Title top, metadata, requested by bottom
             caption = (
                 f"🎬 Title: {title}\n\n"
                 f"👁 Views: {view_count}\n"
@@ -75,8 +70,7 @@ def register_tiktok(app: Client):
                 [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]
             ])
 
-            await processing_msg.delete()
-            await message.reply("Select download option:", reply_markup=buttons)
+            select_msg = await message.reply("Select download option:", reply_markup=buttons)
 
         except Exception as e:
             await processing_msg.edit(f"⚠️ Error while fetching info: {e}")
@@ -88,7 +82,6 @@ def register_tiktok(app: Client):
         processing = await callback.message.reply("⏳ Downloading... Please wait")
 
         try:
-            # Extract info again to build caption
             with YoutubeDL(ydl_opts_video) as ydl:
                 info = ydl.extract_info(url, download=False)
 
@@ -133,7 +126,7 @@ def register_tiktok(app: Client):
                 if option == "audio":
                     file_path = os.path.splitext(file_path)[0] + ".mp3"
 
-            # Send file with caption
+            # Send file
             if option == "audio":
                 await client.send_audio(
                     chat_id=callback.message.chat.id,
@@ -149,7 +142,10 @@ def register_tiktok(app: Client):
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/deweni2")]])
                 )
 
+            # Clean messages
             await processing.delete()
+            if callback.message.reply_markup:  # delete select download option msg
+                await callback.message.delete()
             os.remove(file_path)
 
         except Exception as e:
